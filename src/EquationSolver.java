@@ -20,7 +20,7 @@ public class EquationSolver {
 				a[row][i] = coeff[i];
 				System.out.print(coeff[i]+" ");
 			}
-			b[row][0] = coeff[n-1];
+			b[row][0] = -coeff[n-1];
 			row++;
 		}
 		DenseMatrix64F A = new DenseMatrix64F(a);

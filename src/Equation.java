@@ -25,20 +25,32 @@ public class Equation {
 		int count = 0;
 		String[] eqnComponents = s.split(" ");
 		ArrayList<Double> coefficients = new ArrayList<Double>();
+		boolean signFlag = false;
 		for (String component : eqnComponents) {
 			if (component.equals("="))
 				break;
 			if (component.equals("+") || component.equals("-")) {
 				count++;
+				if (component.equals("-"))
+					signFlag = true;
 				continue;
 			}
 			Pattern pattern = Pattern.compile("^\\d+(?:\\.\\d+)?");
 		    Matcher matcher = pattern.matcher(component);
 		    if(!matcher.find()) {
-		    	coefficients.add(new Double(1));
+		    	if (signFlag)
+		    		coefficients.add(new Double(-1));
+		    	else
+		    		coefficients.add(new Double(1));
+		    	signFlag = false;
 		    	continue;
 		    }
-		    coefficients.add(Double.parseDouble(matcher.group()));
+		    Double singleCoeff =  Double.parseDouble(matcher.group());
+		    if (signFlag) {
+		    	singleCoeff = -singleCoeff;
+		    	signFlag = false;
+		    }
+		    coefficients.add(singleCoeff);
 		}
 		sEqn = new Equation(count,coefficients.toArray(new Double[coefficients.size()]));
 		System.out.println(count+"|"+coefficients);
