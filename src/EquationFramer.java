@@ -5,12 +5,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import edu.smu.tspell.wordnet.NounSynset;
 import edu.smu.tspell.wordnet.Synset;
 import edu.smu.tspell.wordnet.SynsetType;
 import edu.smu.tspell.wordnet.WordNetDatabase;
+import edu.stanford.nlp.dcoref.CorefChain;
+import edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
@@ -19,6 +22,10 @@ import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import edu.stanford.nlp.semgraph.SemanticGraph;
+import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation;
+import edu.stanford.nlp.trees.Tree;
+import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
 
 class Number {
@@ -83,7 +90,7 @@ public class EquationFramer {
 		buildLookup();
 		String question = "A writing workshop enrolls novelists and poets in a ratio of 5 to 3. There are 24 people at the workshop. How many novelists are there? How many poets are there?";
 		Properties props = new Properties();
-	    props.put("annotators", "tokenize, ssplit, pos, lemma");
+	    props.put("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref");
 	    StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
 	    String text = question; 
 	    Annotation document = new Annotation(text);
@@ -92,18 +99,26 @@ public class EquationFramer {
 	    ArrayList<String> allWords = new ArrayList<String>();
 	    
 	    for(CoreMap sentence: sentences) {
-	      for (CoreLabel token: sentence.get(TokensAnnotation.class)) {
-	        String word = token.get(TextAnnotation.class);
-	        String lemma;
-	        if (singPlural.containsKey(word))
-	        	lemma = singPlural.get(word);
-	        else
-	        	lemma = token.get(LemmaAnnotation.class);
-	        String pos = token.get(PartOfSpeechAnnotation.class);
-	        System.out.println(word+"|"+pos+"|"+lemma);
-	        allWords.add(lemma);
-	       }
+	    	for (CoreLabel token: sentence.get(TokensAnnotation.class)) {
+	    		String word = token.get(TextAnnotation.class);
+	    		String lemma;
+	    		if (singPlural.containsKey(word))
+	    			lemma = singPlural.get(word);
+	    		else
+	    			lemma = token.get(LemmaAnnotation.class);
+	    		String pos = token.get(PartOfSpeechAnnotation.class);
+	    		System.out.println(word+"|"+pos+"|"+lemma);
+	    		allWords.add(lemma);
+	    	}
+	    	// this is the parse tree of the current sentence
+	    	Tree tree = sentence.get(TreeAnnotation.class);
+	    	System.out.println(tree);
+	    	// this is the Stanford dependency graph of the current sentence
+	    	SemanticGraph dependencies = sentence.get(CollapsedCCProcessedDependenciesAnnotation.class);
+	    	System.out.println(dependencies);
 	    }
+	    Map<Integer, CorefChain> graph = document.get(CorefChainAnnotation.class);
+	    System.out.println(graph);
 	    ArrayList<Number> numbers = new ArrayList<Number>();
 	    numbers = getNumbers(sentences);
 	    for (Number n : numbers) {
