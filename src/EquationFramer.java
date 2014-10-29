@@ -13,6 +13,7 @@ import edu.smu.tspell.wordnet.Synset;
 import edu.smu.tspell.wordnet.SynsetType;
 import edu.smu.tspell.wordnet.WordNetDatabase;
 import edu.stanford.nlp.dcoref.CorefChain;
+import edu.stanford.nlp.dcoref.CorefChain.CorefMention;
 import edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
@@ -119,6 +120,32 @@ public class EquationFramer {
 	    }
 	    Map<Integer, CorefChain> graph = document.get(CorefChainAnnotation.class);
 	    System.out.println(graph);
+	    //http://stackoverflow.com/questions/6572207/stanford-core-nlp-understanding-coreference-resolution
+	    for(Map.Entry<Integer, CorefChain> entry : graph.entrySet()) {
+            CorefChain c = entry.getValue();
+            //this is because it prints out a lot of self references which aren't that useful
+            if(c.getMentionsInTextualOrder().size() <= 1)
+                continue;
+            CorefMention cm = c.getRepresentativeMention();
+            String clust = "";
+            List<CoreLabel> tks = document.get(SentencesAnnotation.class).get(cm.sentNum-1).get(TokensAnnotation.class);
+            for(int i = cm.startIndex-1; i < cm.endIndex-1; i++)
+                clust += tks.get(i).get(TextAnnotation.class) + " ";
+            clust = clust.trim();
+            System.out.println("representative mention: \"" + clust + "\" is mentioned by:");
+            for(CorefMention m : c.getMentionsInTextualOrder()){
+                String clust2 = "";
+                tks = document.get(SentencesAnnotation.class).get(m.sentNum-1).get(TokensAnnotation.class);
+                for(int i = m.startIndex-1; i < m.endIndex-1; i++)
+                    clust2 += tks.get(i).get(TextAnnotation.class) + " ";
+                clust2 = clust2.trim();
+                //don't need the self mention
+                if(clust.equals(clust2))
+                    continue;
+                System.out.println("\t" + clust2);
+            }
+        }
+	    
 	    ArrayList<Number> numbers = new ArrayList<Number>();
 	    numbers = getNumbers(sentences);
 	    for (Number n : numbers) {
@@ -135,8 +162,12 @@ public class EquationFramer {
 	    sys.add(oneqn);
 	    sys.add(twoqn);
 	    EquationSolver.solve(sys);
-	    
-		
+	    oneqn = EquationSimplifier.simplify("10x + y + 9 = 10y + x");
+	    twoqn = EquationSimplifier.simplify("x + y = 7");
+	    sys = new ArrayList<Equation>();
+	    sys.add(oneqn);
+	    sys.add(twoqn);
+	    EquationSolver.solve(sys);
 	}
 	private static ArrayList<Number> getNumbers(List<CoreMap> sentences) {
 		
