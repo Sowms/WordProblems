@@ -75,6 +75,7 @@ public class EquationSimplifier {
 		    	 coefficients.add(pairs.getValue());
 		}
 		coefficients.add(varCoeffMap.get("const"));
+		System.out.println(coefficients);
 		sEqn = new Equation(coefficients.size()-1,coefficients.toArray(new Double[coefficients.size()]));
 		return sEqn;
 	}
@@ -128,8 +129,10 @@ public class EquationSimplifier {
 				System.out.println("Query was not understood; no results available.");
 			} else {
 				System.out.println("Successful query. Pods follow:\n");
+				boolean checkFlag = false;
 				for (WAPod pod : queryResult.getPods()) {
 					if (!pod.isError() && pod.getTitle().equals("Alternate forms")) {
+						checkFlag = true;
 						System.out.println(pod.getTitle());
 						System.out.println("------------");
 						WASubpod subpod = pod.getSubpods()[0];
@@ -142,6 +145,10 @@ public class EquationSimplifier {
 							}
 						}
 					}
+				}
+				if (!checkFlag) {
+					System.out.println(cleanup(s));
+					return simpleSimplifier(cleanup(s));
 				}
 			}
 		}

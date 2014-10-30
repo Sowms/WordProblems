@@ -16,6 +16,7 @@ import edu.stanford.nlp.dcoref.CorefChain;
 import edu.stanford.nlp.dcoref.CorefChain.CorefMention;
 import edu.stanford.nlp.dcoref.CorefCoreAnnotations.CorefChainAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.SentencesAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
@@ -89,7 +90,7 @@ public class EquationFramer {
 	}
 	public static void main(String[] args) {
 		buildLookup();
-		String question = "A writing workshop enrolls novelists and poets in a ratio of 5 to 3. There are 24 people at the workshop. How many novelists are there? How many poets are there?";
+		String question = "Aftab tells his daughter, Seven years ago, I was seven times as old as you were then. Also, three years from now, I shall be three times as old as you will be. How old is Aftab?";
 		Properties props = new Properties();
 	    props.put("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref");
 	    StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
@@ -108,7 +109,7 @@ public class EquationFramer {
 	    		else
 	    			lemma = token.get(LemmaAnnotation.class);
 	    		String pos = token.get(PartOfSpeechAnnotation.class);
-	    		System.out.println(word+"|"+pos+"|"+lemma);
+	    		System.out.println(word+"|"+pos+"|"+lemma+"|"+token.get(NamedEntityTagAnnotation.class));
 	    		allWords.add(lemma);
 	    	}
 	    	// this is the parse tree of the current sentence
@@ -162,8 +163,8 @@ public class EquationFramer {
 	    sys.add(oneqn);
 	    sys.add(twoqn);
 	    EquationSolver.solve(sys);
-	    oneqn = EquationSimplifier.simplify("10x + y + 9 = 10y + x");
-	    twoqn = EquationSimplifier.simplify("x + y = 7");
+	    oneqn = EquationSimplifier.simplify("5x+7y=50");
+	    twoqn = EquationSimplifier.simplify("7x+5y=46");
 	    sys = new ArrayList<Equation>();
 	    sys.add(oneqn);
 	    sys.add(twoqn);
@@ -192,7 +193,12 @@ public class EquationFramer {
 		        	candidates[loc] = lemma;
 		        if (pos.equals("CD")) {
 		        	Number curNum = new Number();
-		        	curNum.value = Integer.parseInt(word);
+		        	try {
+		        		curNum.value = Integer.parseInt(word);
+		        	}
+		        	catch (Exception e) {
+		        		curNum.value=Integer.parseInt(NumberNameToNumber.convert(word));
+		        	}
 		        	curNum.pos = loc;
 		        	sentNumbers.add(curNum);
 		        }
