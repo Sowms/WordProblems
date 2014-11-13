@@ -26,6 +26,7 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.semgraph.SemanticGraph;
 import edu.stanford.nlp.semgraph.SemanticGraphCoreAnnotations.CollapsedCCProcessedDependenciesAnnotation;
+import edu.stanford.nlp.semgraph.SemanticGraphEdge;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.trees.TreeCoreAnnotations.TreeAnnotation;
 import edu.stanford.nlp.util.CoreMap;
@@ -90,17 +91,19 @@ public class EquationFramer {
 	}
 	public static void main(String[] args) {
 		buildLookup();
-		String question = "Aftab tells his daughter, Seven years ago, I was seven times as old as you were then. Also, three years from now, I shall be three times as old as you will be. How old is Aftab?";
+		String question = "A company can make 5 bikes in one minute. How many bikes can it make in 6 minutes?";
 		Properties props = new Properties();
-	    props.put("annotators", "tokenize, ssplit, pos, lemma, ner, parse, dcoref");
+	    props.put("annotators", "tokenize, ssplit, pos, lemma, ner, parse");
 	    StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
 	    String text = question; 
 	    Annotation document = new Annotation(text);
 	    pipeline.annotate(document);
 	    List<CoreMap> sentences = document.get(SentencesAnnotation.class);
 	    ArrayList<String> allWords = new ArrayList<String>();
-	    
+	    ArrayList<Number> numbers = new ArrayList<Number>();
+	    ArrayList<String> equations = new ArrayList<String>();
 	    for(CoreMap sentence: sentences) {
+	    	ArrayList<Integer> values = new ArrayList<Integer>();
 	    	for (CoreLabel token: sentence.get(TokensAnnotation.class)) {
 	    		String word = token.get(TextAnnotation.class);
 	    		String lemma;
@@ -111,6 +114,10 @@ public class EquationFramer {
 	    		String pos = token.get(PartOfSpeechAnnotation.class);
 	    		System.out.println(word+"|"+pos+"|"+lemma+"|"+token.get(NamedEntityTagAnnotation.class));
 	    		allWords.add(lemma);
+	    		if (pos.equals("CD")) {
+	    			
+	    			values.add(Integer.parseInt(NumberNameToNumber.convert(word)));
+	    		}
 	    	}
 	    	// this is the parse tree of the current sentence
 	    	Tree tree = sentence.get(TreeAnnotation.class);
@@ -118,7 +125,36 @@ public class EquationFramer {
 	    	// this is the Stanford dependency graph of the current sentence
 	    	SemanticGraph dependencies = sentence.get(CollapsedCCProcessedDependenciesAnnotation.class);
 	    	System.out.println(dependencies);
-	    }
+	    	//Assumes every sentence has equation
+	    	String equation = "";
+	    	ArrayList<SemanticGraphEdge> edges = (ArrayList<SemanticGraphEdge>) dependencies.edgeListSorted();
+	    	boolean isEqn = false;
+	    	for (SemanticGraphEdge edge : edges) {
+	    		System.out.println(edge.getSource()+"|"+edge.getTarget()+"|"+edge.getRelation());
+	    		if (edge.getRelation().equals("num")) {
+	    			//need to resolve complex numbers
+	    			Number n = new Number();
+	    			if (!edge.getSource().lemma().matches("[a-zA-Z]+"))
+	    				continue;
+	    			n.entity = edge.getSource().lemma();
+	    			//resolve number name
+	    			n.value = Integer.parseInt(NumberNameToNumber.convert(edge.getTarget().originalText()));
+	    			values.remove(new Integer(n.value));
+	    			numbers.add(n);
+	    			equation = equation + n.value + n.entity;
+	    			isEqn = true;
+	    			break;
+	    		}
+	    	}
+	    	if (isEqn) {
+	    		if (!values.isEmpty())
+	    			equation = equation + "+0ans"+"=" + values.get(0);
+	    		else
+	    			equation = equation + "=ans";
+	    		System.out.println("aaaaaaaaaaaaaa"+equation);
+	    		equations.add(equation);
+	    	}
+	    }/*
 	    Map<Integer, CorefChain> graph = document.get(CorefChainAnnotation.class);
 	    System.out.println(graph);
 	    //http://stackoverflow.com/questions/6572207/stanford-core-nlp-understanding-coreference-resolution
@@ -145,29 +181,23 @@ public class EquationFramer {
                     continue;
                 System.out.println("\t" + clust2);
             }
-        }
+        }*/
 	    
-	    ArrayList<Number> numbers = new ArrayList<Number>();
+	    /*ArrayList<Number> numbers = new ArrayList<Number>();
 	    numbers = getNumbers(sentences);
 	    for (Number n : numbers) {
 	    	System.out.println(n.entity+"|"+n.value+"|"+n.unit);
-	    }
-	    
+	    }*/
+	    /*
 	    System.out.println(getAllHypernyms("novelist"));
 	    System.out.println(getAllHypernyms("poet"));
 	    System.out.println(getAllHypernyms("seat"));
-	    System.out.println(getAllHypernyms("ticket"));
-	    Equation oneqn = Equation.parse("x + y - 278 = 0");
-	    Equation twoqn = Equation.parse("1.5x + 4y - 792 = 0");
+	    System.out.println(getAllHypernyms("ticket"));*/
+	    
 	    ArrayList<Equation> sys = new ArrayList<Equation>();
-	    sys.add(oneqn);
-	    sys.add(twoqn);
-	    EquationSolver.solve(sys);
-	    oneqn = EquationSimplifier.simplify("5x+7y=50");
-	    twoqn = EquationSimplifier.simplify("7x+5y=46");
-	    sys = new ArrayList<Equation>();
-	    sys.add(oneqn);
-	    sys.add(twoqn);
+	    for (String equation : equations) {
+	    	sys.add(EquationSimplifier.simplify(equation));
+	    }
 	    EquationSolver.solve(sys);
 	}
 	private static ArrayList<Number> getNumbers(List<CoreMap> sentences) {

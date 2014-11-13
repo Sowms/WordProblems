@@ -1,9 +1,11 @@
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import com.wolfram.alpha.WAEngine;
 import com.wolfram.alpha.WAException;
 import com.wolfram.alpha.WAPlainText;
@@ -14,8 +16,8 @@ import com.wolfram.alpha.WASubpod;
 
 
 public class EquationSimplifier {
-	//Sample program
 	private static String appid = "XKXW7Q-RUTH97KAHA";
+	private static HashMap<String,String> varStdMap = new HashMap<String,String>();
 	public static Equation simpleSimplifier(String s) {
 		Equation sEqn = null;
 		String[] eqnComponents = s.split(" ");
@@ -32,13 +34,14 @@ public class EquationSimplifier {
 					signFlag = true;
 					continue;
 			}
-			if (component.equals("+"))
+			if (component.equals("+") || component.equals(""))
 				continue;
 			Pattern coeffPattern = Pattern.compile("^\\d+(?:\\.\\d+)?");
 			Pattern varPattern = Pattern.compile("[a-zA-Z]+");
 		    Matcher matcher = coeffPattern.matcher(component);
 		    Double singleCoeff = null;
 		    if(!matcher.find()) {
+		    	System.out.println("var"+component+"|");
 		    	if (signFlag && !flipFlag || !signFlag && flipFlag)
 		    		singleCoeff = -1.0; 
 		    	else
@@ -47,6 +50,8 @@ public class EquationSimplifier {
 		    }
 		    else {
 		    	singleCoeff =  Double.parseDouble(matcher.group());
+		    	System.out.println("coeff"+singleCoeff);
+		    	
 		    	if (signFlag && !flipFlag || !signFlag && flipFlag) {
 		    		singleCoeff = -singleCoeff;
 		    		signFlag = false;
@@ -75,7 +80,7 @@ public class EquationSimplifier {
 		    	 coefficients.add(pairs.getValue());
 		}
 		coefficients.add(varCoeffMap.get("const"));
-		System.out.println(coefficients);
+		System.out.println("simp" + coefficients);
 		sEqn = new Equation(coefficients.size()-1,coefficients.toArray(new Double[coefficients.size()]));
 		return sEqn;
 	}
@@ -90,6 +95,8 @@ public class EquationSimplifier {
 					continue;
 				}
 				if (prevS.matches("\\d")) {
+					if (i == s.length()-1) //unnecessary space at end
+						continue;
 					String next = s.charAt(i+1) + "";
 					if (next.equals("=")) {
 						copy = copy + " ";
@@ -112,8 +119,33 @@ public class EquationSimplifier {
 		}
 		return copy;
 	}
+	public static String standardize(String eqn) {
+	
+		String[] eqnComponents = eqn.split(" ");
+		String copy = "";
+		char curVar = 'x';
+		for (String component: eqnComponents) {
+			Pattern varPattern = Pattern.compile("[a-zA-Z_]+");
+		    Matcher matcher = varPattern.matcher(component);
+		    if (matcher.find()) {
+		    	if (varStdMap.containsKey(matcher.group()))
+		    		copy = copy + component.replace(matcher.group(), varStdMap.get(matcher.group()));
+		    	else {
+		    		String value = curVar + "";
+		    		curVar = (char)((int)curVar + 1);
+		    		varStdMap.put(matcher.group(), value);
+		    		copy = copy + component.replace(matcher.group(), value);
+		    	}
+		    	copy = copy + " ";
+		    	continue;
+		    }
+		    copy = copy + component + " ";
+		}
+		System.out.println("in"+eqn+"|"+copy);
+		return copy;
+	}
 	public static Equation simplify(String s) {
-		String input = s;
+		String input = standardize(cleanup(s));
 		WAEngine engine = new WAEngine();
 		engine.setAppID(appid);
 		engine.addFormat("plaintext");
@@ -132,23 +164,28 @@ public class EquationSimplifier {
 				boolean checkFlag = false;
 				for (WAPod pod : queryResult.getPods()) {
 					if (!pod.isError() && pod.getTitle().equals("Alternate forms")) {
-						checkFlag = true;
 						System.out.println(pod.getTitle());
 						System.out.println("------------");
-						WASubpod subpod = pod.getSubpods()[0];
-						for (Object element : subpod.getContents()) {
-							if (element instanceof WAPlainText) {
-								String ans = ((WAPlainText) element).getText();
-								System.out.println(ans);
-								System.out.println(cleanup(ans));
-								return simpleSimplifier(cleanup(ans)); 
-							}
+						for (WASubpod subpod : pod.getSubpods()) {
+							for (Object element : subpod.getContents()) {
+								if (element instanceof WAPlainText) {
+									String ans = ((WAPlainText) element).getText();
+									if (ans.contains("/"))
+										continue;
+									checkFlag = true;
+									System.out.println(ans);
+									System.out.println(cleanup(ans));
+									return simpleSimplifier(cleanup(ans)); 
+								}
+							}	
 						}
+						
 					}
 				}
 				if (!checkFlag) {
-					System.out.println(cleanup(s));
-					return simpleSimplifier(cleanup(s));
+					System.out.println(input);
+					System.out.println(cleanup(input));
+					return simpleSimplifier(cleanup(input));
 				}
 			}
 		}

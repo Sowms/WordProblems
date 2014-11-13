@@ -35,7 +35,7 @@ public class Equation {
 					signFlag = true;
 				continue;
 			}
-			Pattern pattern = Pattern.compile("^\\d+(?:\\.\\d+)?");
+			Pattern pattern = Pattern.compile("^\\d+(?:\\.\\d*)?");
 		    Matcher matcher = pattern.matcher(component);
 		    if(!matcher.find()) {
 		    	if (signFlag)
